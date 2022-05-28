@@ -1,4 +1,4 @@
-import CircuitBreaker from "../src/circuit";
+import CircuitBreaker from "..";
 import { mockPromise, MockPromiseResult, sleep } from "../test/common";
 
 (async () => {
