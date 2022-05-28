@@ -11,11 +11,6 @@ const LOGGER = Symbol("logger");
 /**
  * Constructs a {@link Status}.
  *
- * Tracks execution status for a given {@link CircuitBreaker}.
- * A Status instance will listen for all events on the {@link CircuitBreaker}
- * and track them in a rolling statistical window. The window consists of
- * an array of Objects, each representing the counts for a {@link CircuitBreaker}'s events.
- *
  * @class Status
  * @extends EventEmitter
  * @param {Boolean} debug Enable/disable debug logging.
