@@ -1,4 +1,4 @@
-# Circuit Breaker
+# Circuit Breaker [![CI](https://github.com/tajpouria/circuit-breaker/actions/workflows/ci.yaml/badge.svg)](https://github.com/tajpouria/circuit-breaker/actions/workflows/ci.yaml)
 
 A zero-dependency Node.js circuit breaker that executes asynchronous functions and monitors their execution status. When things start failing, circuit breaker plays dead and fails fast.
 
