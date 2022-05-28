@@ -1,4 +1,4 @@
-import CircuitBreaker from "../src/circuit";
+import CircuitBreaker from "..";
 import { ErrorCode } from "../src/common";
 import { CircuitBreakerOptions } from "../src/types";
 import { mockPromise, MockPromiseResult, sleep } from "./common";
@@ -16,7 +16,7 @@ console.table(options);
 
 let breaker: CircuitBreaker;
 beforeEach(() => {
-  breaker = new CircuitBreaker(mockPromise, options);
+  breaker = new CircuitBreaker(mockPromise, options) as CircuitBreaker;
 });
 
 it("Breaker switches between open, close, and half-open statuses correctly.", async () => {
