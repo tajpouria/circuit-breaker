@@ -8,7 +8,6 @@ const STATE = Symbol("state");
 const OPEN = Symbol("open");
 const CLOSED = Symbol("closed");
 const HALF_OPEN = Symbol("half-open");
-const PENDING_CLOSE = Symbol("pending-close");
 const STATUS = Symbol("status");
 const RESET_TIMEOUT = Symbol("reset-timeout");
 const LOGGER = Symbol("logger");
@@ -82,7 +81,6 @@ export default class CircuitBreaker<
     // Populate the properties
     this[STATUS] = new Status(this.options.resetTimeout, options.debug);
     this[STATE] = CLOSED;
-    this[PENDING_CLOSE] = false;
     this[LOGGER] = new Logger(CircuitBreaker.name, options.debug ? 2 : 1);
 
     // Register the listeners
@@ -113,7 +111,6 @@ export default class CircuitBreaker<
         clearTimeout(this[RESET_TIMEOUT]);
       }
       this[STATE] = CLOSED;
-      this[PENDING_CLOSE] = false;
       /**
        * Emitted when the breaker is reset allowing the action to execute again
        * @event CircuitBreaker#close
@@ -132,7 +129,6 @@ export default class CircuitBreaker<
     if (this[STATE] !== OPEN) {
       this[LOGGER].debug("Opening the breaker");
       this[STATE] = OPEN;
-      this[PENDING_CLOSE] = false;
       /**
        * Emitted when the breaker opens because the action has
        * failed more than `options.maxFailures` number of times.
@@ -187,8 +183,6 @@ export default class CircuitBreaker<
       this[LOGGER].debug(`Rejecting with '${error.message}' error`);
       return Promise.reject(error);
     }
-
-    this[PENDING_CLOSE] = false;
 
     let timeout: NodeJS.Timeout;
     let timeoutError = false;
@@ -246,7 +240,6 @@ export default class CircuitBreaker<
     );
     this[RESET_TIMEOUT] = setTimeout(() => {
       this[STATE] = HALF_OPEN;
-      this[PENDING_CLOSE] = true;
       /**
        * Emitted after `options.resetTimeout` has elapsed, allowing for
        * a single attempt to call the service again. If that attempt is
