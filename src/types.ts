@@ -31,5 +31,4 @@ export interface StatusBucket {
   rejects: number;
   fires: number;
   timeouts: number;
-  isCircuitBreakerOpen: boolean;
 }

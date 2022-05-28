@@ -100,7 +100,9 @@ it("Breaker respond properly in the open, close, and half-open statuses.", async
   // Resolve the promise 1 time to CLOSE the breaker
   await breaker.fire(MockPromiseResult.RESOLVE);
 
-  await expect(breaker.fire(MockPromiseResult.REJECT)).rejects.toThrow(
-    MockPromiseResult.REJECT,
-  );
+  // Breaker must be in the CLOSE state
+  for (let i = 1; i <= breaker.options.maxFailures - 1; i++)
+    await expect(breaker.fire(MockPromiseResult.REJECT)).rejects.toThrow(
+      MockPromiseResult.REJECT,
+    );
 });

@@ -2,6 +2,7 @@ import EventEmitter from "events";
 import { Status } from "./status";
 import { CircuitBreakerOptions } from "./types";
 import { buildError, ErrorCode } from "./common";
+import { Logger } from "./logger";
 
 const STATE = Symbol("state");
 const OPEN = Symbol("open");
@@ -10,14 +11,15 @@ const HALF_OPEN = Symbol("half-open");
 const PENDING_CLOSE = Symbol("pending-close");
 const STATUS = Symbol("status");
 const RESET_TIMEOUT = Symbol("reset-timeout");
+const LOGGER = Symbol("logger");
 
 /**
  * Constructs a {@link CircuitBreaker}.
  *
  * @class CircuitBreaker
  * @extends EventEmitter
- * @param {Function} action The action to fire for this {@link CircuitBreaker}
- * @param {Object} options Options for the {@link Options}
+ * @param {Function} action The action to fire
+ * @param {Object} options Options for the {@link CircuitBreaker}
  */
 export default class CircuitBreaker<
   TI extends unknown[] = unknown[],
@@ -77,10 +79,11 @@ export default class CircuitBreaker<
       : 10;
     this.options.debug = !!options.debug;
 
-    // Populate the statuses
-    this[STATUS] = new Status();
+    // Populate the properties
+    this[STATUS] = new Status(this.options.resetTimeout, options.debug);
     this[STATE] = CLOSED;
     this[PENDING_CLOSE] = false;
+    this[LOGGER] = new Logger(CircuitBreaker.name, options.debug ? 2 : 1);
 
     // Register the listeners
 
@@ -92,11 +95,11 @@ export default class CircuitBreaker<
     this.on("timeout", () => this[STATUS].increment("timeouts"));
     this.on("fire", () => this[STATUS].increment("fires"));
     this.on("reject", () => this[STATUS].increment("rejects"));
-    this.on("open", () => {
-      this[STATUS].open();
-      this.startResetTimer();
-    });
-    this.on("close", () => this[STATUS].close());
+    this.on("open", this.startResetTimer);
+
+    this[LOGGER].debug(
+      `Initialized with following options: ${JSON.stringify(this.options)}.`,
+    );
   }
 
   /**
@@ -105,6 +108,7 @@ export default class CircuitBreaker<
    */
   close = (): void => {
     if (this[STATE] !== CLOSED) {
+      this[LOGGER].debug("Closing the breaker");
       if (this[RESET_TIMEOUT]) {
         clearTimeout(this[RESET_TIMEOUT]);
       }
@@ -126,6 +130,7 @@ export default class CircuitBreaker<
    */
   open = (): void => {
     if (this[STATE] !== OPEN) {
+      this[LOGGER].debug("Opening the breaker");
       this[STATE] = OPEN;
       this[PENDING_CLOSE] = false;
       /**
@@ -145,6 +150,9 @@ export default class CircuitBreaker<
    * value on success or is rejected on failure of the action.
    */
   fire(...args: any[]): Promise<any> {
+    this[LOGGER].debug(
+      `Firing the action with following arguments ${JSON.stringify(args)}`,
+    );
     return this.call.apply(this, [this.action].concat(args));
   }
 
@@ -175,11 +183,11 @@ export default class CircuitBreaker<
        * @type {Error}
        */
       const error = buildError(ErrorCode.EOPENBREAKER);
-
       this.emit("reject", error);
-
+      this[LOGGER].debug(`Rejecting with '${error.message}' error`);
       return Promise.reject(error);
     }
+
     this[PENDING_CLOSE] = false;
 
     let timeout: NodeJS.Timeout;
@@ -196,6 +204,7 @@ export default class CircuitBreaker<
            * @type {Error}
            */
           this.emit("timeout", error, args);
+          this[LOGGER].debug(`Rejecting with '${error.message}' error`);
           this.handleError(error, timeout, args, reject);
         }, this.options.timeout);
       }
@@ -219,9 +228,7 @@ export default class CircuitBreaker<
             }
           })
           .catch((error) => {
-            if (!timeoutError) {
-              this.handleError(error, timeout, args, reject);
-            }
+            if (!timeoutError) this.handleError(error, timeout, args, reject);
           });
       } catch (error) {
         this.handleError(error, timeout, args, reject);
@@ -234,6 +241,9 @@ export default class CircuitBreaker<
    * @returns {void}
    */
   private startResetTimer = (): void => {
+    this[LOGGER].debug(
+      `Starting the reset timer for '${this.options.resetTimeout}' milliseconds`,
+    );
     this[RESET_TIMEOUT] = setTimeout(() => {
       this[STATE] = HALF_OPEN;
       this[PENDING_CLOSE] = true;
@@ -244,7 +254,9 @@ export default class CircuitBreaker<
        * @event CircuitBreaker#halfOpen
        * @type {Number} how long the circuit remained open
        */
-      this.emit("halfOpen", this.options.resetTimeout);
+      this[LOGGER].debug(`Reset timer elapsed`);
+      this.emit("halfOpen");
+      this[LOGGER].debug(`Half-opening the breaker`);
     }, this.options.resetTimeout);
   };
 
@@ -279,6 +291,7 @@ export default class CircuitBreaker<
     this.emit("failure", error, args);
     // check stats to see if the circuit should be opened
     const stats = this.stats;
+    this[LOGGER].debug(`Time window total stats ${JSON.stringify(stats)}`);
     if (stats.failures >= this.options.maxFailures || this.halfOpen)
       this.open();
   };
