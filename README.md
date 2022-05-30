@@ -55,7 +55,7 @@ Readme sample can be found in the [example](./example).
 
 ## How is it tracks the circuit breaker status?
 
-The [Status](./src/circuit.ts) class, Tracks execution status for a given circuit breaker.
+The [Status](./src/status.ts) class, Tracks execution status for a given circuit breaker.
 It listen for all events on the circuit breaker and track them in a rolling statistical window.
 The window consists of an array of Objects like this:
 
